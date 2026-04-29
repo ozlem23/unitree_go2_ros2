@@ -1,6 +1,16 @@
 <?xml version="1.0" ?>
 <sdf version="1.8">
   <world name="default">
+    <!-- Geographic origin for GPS simulation — change to match your actual test site -->
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <world_frame_orientation>ENU</world_frame_orientation>
+      <latitude_deg>30.0444</latitude_deg>
+      <longitude_deg>31.2357</longitude_deg>
+      <elevation>74.0</elevation>
+      <heading_deg>0</heading_deg>
+    </spherical_coordinates>
+
     <physics name="1ms" type="bullet-featherstone">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
@@ -23,6 +33,10 @@
     <plugin
       filename="gz-sim-scene-broadcaster-system"
       name="gz::sim::systems::SceneBroadcaster">
+    </plugin>
+    <plugin
+      filename="gz-sim-navsat-system"
+      name="gz::sim::systems::NavSat">
     </plugin>
     
     <!-- Lights -->

@@ -33,7 +33,7 @@ CHAMP (Coupled Hybrid Automata for Mobile Platforms) is an open-source developme
   - ✅ 3D LiDAR (4D Lidar L1) (need some imporvments)
   - ✅ Mono Camera
   - ❌ Depth Camera
-  - ❌ GPS
+  - ✅ GPS (NavSat — simulates standard u-blox, ~0.5 m horizontal accuracy)
 - ✅ Point cloud visualization in RVIZ
 - ✅ Multiple sensor configurations available
 - ❌ Full SLAM functionality (Coming soon)
@@ -136,6 +136,40 @@ Control the robot using keyboard:
 ```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
+
+### GPS Simulation
+
+The robot includes a simulated GPS (NavSat) sensor mounted on top of the trunk, publishing at 10 Hz on `/gps/fix` as `sensor_msgs/msg/NavSatFix`.
+
+The sensor models standard u-blox-level accuracy:
+
+| Axis | Noise (std dev) | Equivalent variance |
+|------|----------------|---------------------|
+| Horizontal (lat/lon) | 0.5 m | 0.25 m² |
+| Vertical (altitude) | 0.8 m | 0.64 m² |
+
+**Verify it is working:**
+
+```bash
+ros2 topic echo /gps/fix
+```
+
+**Setting the geographic origin:**
+
+The world's GPS origin is defined in `unitree_go2_description/worlds/default.sdf` under `<spherical_coordinates>`. Edit `latitude_deg`, `longitude_deg`, and `elevation` to match your actual test site before running navigation experiments:
+
+```xml
+<spherical_coordinates>
+  <surface_model>EARTH_WGS84</surface_model>
+  <world_frame_orientation>ENU</world_frame_orientation>
+  <latitude_deg>YOUR_LAT</latitude_deg>
+  <longitude_deg>YOUR_LON</longitude_deg>
+  <elevation>YOUR_ALT_METERS</elevation>
+  <heading_deg>0</heading_deg>
+</spherical_coordinates>
+```
+
+> **Note:** The `position_covariance` field in the bridged message will be all-zeros (`COVARIANCE_TYPE_UNKNOWN`) because the Gazebo→ROS bridge does not carry covariance. When integrating with `robot_localization`, set the covariance override in your EKF config or add a relay node that stamps diagonal covariance values matching the noise above.
 
 ## Tuning Gait Parameters
 

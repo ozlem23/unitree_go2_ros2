@@ -99,6 +99,46 @@
             </sensor>
         </gazebo>
 
+        <!-- GPS / NavSat plugin — simulates u-blox standard GPS (~0.5 m horizontal noise) -->
+        <gazebo reference="gps_link">
+            <sensor name="navsat_sensor" type="navsat">
+                <always_on>true</always_on>
+                <update_rate>10</update_rate>
+                <topic>gps/fix</topic>
+                <gz_frame_id>gps_link</gz_frame_id>
+                <navsat>
+                    <position_sensing>
+                        <horizontal>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>0.5</stddev>
+                            </noise>
+                        </horizontal>
+                        <vertical>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>0.8</stddev>
+                            </noise>
+                        </vertical>
+                    </position_sensing>
+                    <velocity_sensing>
+                        <horizontal>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>0.1</stddev>
+                            </noise>
+                        </horizontal>
+                        <vertical>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>0.1</stddev>
+                            </noise>
+                        </vertical>
+                    </velocity_sensing>
+                </navsat>
+            </sensor>
+        </gazebo>
+
         <!-- Camera Plugin-->
         <gazebo reference="camera_link">
             <sensor name="rgb_camera" type="camera">
