@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  go2_nav_dev:
+    image: osrf/ros:jazzy-desktop
+    container_name: go2_jazzy_container
+    network_mode: host
+    environment:
+      - DISPLAY=$DISPLAY
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Bulunduğun klasördeki robot kodlarını container içindeki çalışma alanına bağlar
+      - .:/ros2_ws/src/unitree_go2_ros2
+    devices:
+      # NVIDIA olmayan bilgisayarlarda dahili ekran kartını container'a aktarır
+      - /dev/dri:/dev/dri
+    privileged: true
+    tty: true
+    stdin_open: true
+    command: bash

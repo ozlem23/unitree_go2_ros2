@@ -1,0 +1,55 @@
+slam_toolbox:
+  ros__parameters:
+
+    # Eksen ve Dönüşüm Ayarları
+    odom_frame: odom
+    base_frame: base_footprint
+    map_frame: map
+    scan_topic: /scan
+    use_sim_time: true
+    mode: mapping
+
+    # Core SLAM Parametreleri
+    debug_logging: false
+    throttle_scans: 1
+    transform_publish_period: 0.02
+    map_update_interval: 1.0
+    resolution: 0.05
+    
+    # Zaman Aşımı ve TF Tolerans Ayarları (Jazzy Senkronizasyonu)
+    transform_timeout: 1.0
+    tf_buffer_duration: 30.0
+    lookup_transform_timeout: 0.5
+
+    # LiDAR Sıkıştırma ve Açı Filtreleri (DÜZELTİLDİ)
+    angle_min: -3.14159          # DÜZELTME: -180 derece (Tam tur görüş için)
+    angle_max: 3.14159           # DÜZELTME: +180 derece
+    angle_increment: 0.00872     # DÜZELTME: 0.5 derecelik adımlar (CPU dostu)
+    range_min: 0.35              # DÜZELTME: Robotun kendi bacaklarını/gövdesini görmemesi için (Launch ile eşitlendi)
+    max_laser_range: 25.0
+    minimum_time_interval: 0.1
+
+    # Harita Güncelleme Kriterleri
+    minimum_travel_distance: 0.1
+    minimum_travel_heading: 0.1
+
+    # Tarama Eşleştirme (Scan Matcher) Ayarları (DÜZELTİLDİ)
+    use_scan_matching: true
+    use_scan_barycenter: true
+    minimum_similarity_score: 0.55 # DÜZELTME: Sarsıntılarda haritanın kaymasını engellemek için yükseltildi
+    distance_variance_penalty: 0.5 # DÜZELTME: Doğrusal hareket toleransı optimize edildi
+    angle_variance_penalty: 0.5
+
+    # Gelişmiş Korelasyon Ayarları
+    coarse_search_angle_offset: 0.349
+    coarse_simulation_angular_step: 0.0174
+    fine_search_angle_offset: 0.00349
+    fine_simulation_angular_step: 0.00174
+
+    # Döngü Kapatma (Loop Closure) Ayarları
+    do_loop_closure: true
+    loop_search_maximum_distance: 4.0
+    loop_match_minimum_chain_size: 10
+    loop_match_maximum_variance_coarse: 0.4
+    loop_match_minimum_response_coarse: 0.8
+    loop_match_minimum_response_fine: 0.8
