@@ -30,7 +30,7 @@ public:
     }
 
 private:
-    void listener_callback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
+void listener_callback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
     {
         if (cloud_msg->data.empty()) return;
 
@@ -44,12 +44,15 @@ private:
         laser_msg->angle_min = -M_PI;
         laser_msg->angle_max = M_PI;
         laser_msg->angle_increment = 0.007; 
-        laser_msg->time_increment = 0.0;
+        
+        // 🛠️ DEĞİŞİKLİK 1: Sabit 0.0 yerine adımlar arası minik bir zaman ekledik (SLAM için)
         laser_msg->scan_time = 0.033;
-        laser_msg->range_min = 0.35; // Robotun kendi bacaklarını elemek için alt sınır yükseltildi
+        int num_readings = std::floor((laser_msg->angle_max - laser_msg->angle_min) / laser_msg->angle_increment) + 1;
+        laser_msg->time_increment = laser_msg->scan_time / static_cast<float>(num_readings);
+
+        laser_msg->range_min = 0.35; 
         laser_msg->range_max = 30.0;
 
-        int num_readings = std::floor((laser_msg->angle_max - laser_msg->angle_min) / laser_msg->angle_increment) + 1;
         laser_msg->ranges.resize(num_readings, std::numeric_limits<float>::infinity()); 
 
         int x_offset = -1, y_offset = -1, z_offset = -1;
@@ -72,20 +75,15 @@ private:
             if (std::isnan(x) || std::isnan(y) || std::isnan(z)) continue;
 
             // --- YENİ MATEMATİKSEL KATMAN / RING FİLTRESİ ---
-            // 3 Boyutlu hipotenüs uzaklığı (R) hesaplanır
             float R = std::sqrt(x*x + y*y + z*z);
             if (R < laser_msg->range_min) continue; 
 
-            // Noktanın LiDAR merkezine göre dikey açısı (Radyan) buluyoruz
             float vertical_angle = std::asin(z / R);
 
-            // Sadece LiDAR hizasındaki tam karşıya bakan dar katmanı/ringi alıyoruz (-3° ile +3° arası)
-            // Bu filtre sayesinde alt taraftaki zemin ve üstteki tavan verileri doğrudan elenir.
             if (vertical_angle < -0.05 || vertical_angle > 0.05) {
                 continue; 
             }
 
-            // 2D düzlemdeki izdüşüm mesafesi
             float range_val = std::sqrt(x*x + y*y);
 
             if (range_val >= laser_msg->range_min && range_val <= laser_msg->range_max) {
@@ -97,6 +95,17 @@ private:
                         laser_msg->ranges[index] = range_val;
                     }
                 }
+            }
+        }
+
+        // 🛠️ DEĞİŞİKLİK 2: Ardışık .inf gürültüsünü engellemek için boşlukları dolduruyoruz
+        // Eğer bir veri .inf ise, onun yerine bir önceki geçerli veriyi yazarak SLAM'in kopmasını önlüyoruz.
+        float last_valid_range = 10.0; // Varsayılan başlangıç mesafesi
+        for (int i = 0; i < num_readings; ++i) {
+            if (std::isinf(laser_msg->ranges[i])) {
+                laser_msg->ranges[i] = last_valid_range;
+            } else {
+                last_valid_range = laser_msg->ranges[i];
             }
         }
 

@@ -66,7 +66,7 @@ def generate_launch_description():
             links_config,
             gait_config,
             {"hardware_connected": False},
-            {"close_loop_odom": True},
+            {"close_loop_odom": False},
         ],
         remappings=[("/cmd_vel/smooth", "/cmd_vel")],
     )
@@ -151,8 +151,8 @@ def generate_launch_description():
         arguments=[
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
             '/imu/data@sensor_msgs/msg/Imu@gz.msgs.IMU',
-            '/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
-            '/tf_static@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+            #'/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+            #'/tf_static@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
             '/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model',
             # 3D ham veri — bu topic korunuyor, kaybolmuyor
             '/velodyne_points/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
@@ -179,7 +179,11 @@ def generate_launch_description():
         executable='pc2_to_laserscan_node',
         name='pc2_to_laserscan_bridge',
         output='screen',
-        parameters=[{'use_sim_time': use_sim_time}]
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'target_frame': 'base_link',  # Bu satırı ekliyoruz
+            'transform_tolerance': 0.05   # Zaman senkronizasyonu için tolerans payı
+        }]
     )
 
     # =========================================================================
@@ -199,7 +203,18 @@ def generate_launch_description():
             {'use_sim_time': True},
         ],
     )
-
+    # SLAM Toolbox'ı otomatik olarak CONFIGURE ve ACTIVATE eden yönetici düğüm
+    slam_lifecycle_manager = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_slam',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'autostart': True, # İşte sihirli kelime! Kendisi configure ve activate yapacak.
+            'node_names': ['slam_toolbox'] # Yukarıda tanımladığın name='slam_toolbox' ile eşleşmeli
+        }]
+    )
     controller_spawner_js = TimerAction(
         period=10.0,
         actions=[
@@ -265,5 +280,6 @@ def generate_launch_description():
         
         pc2_to_laserscan_bridge_node,
         slam_toolbox_node,
+        slam_lifecycle_manager,
         rviz2,
     ])
