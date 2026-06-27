@@ -31,86 +31,76 @@ public:
 
 private:
 void listener_callback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
-    {
-        if (cloud_msg->data.empty()) return;
+{
+    if (cloud_msg->data.empty()) return;
 
-        auto laser_msg = std::make_shared<sensor_msgs::msg::LaserScan>();
+    auto laser_msg = std::make_shared<sensor_msgs::msg::LaserScan>();
+    
+    laser_msg->header.stamp = cloud_msg->header.stamp; 
+    // Sabit velodyne yerine, robot sallansa bile izdüşümü düzgün kalması için base_link yapıyoruz
+    laser_msg->header.frame_id = "base_link"; 
+
+    laser_msg->angle_min = -M_PI;
+    laser_msg->angle_max = M_PI;
+    laser_msg->angle_increment = 0.007; 
+    
+    laser_msg->scan_time = 0.033;
+    int num_readings = std::floor((laser_msg->angle_max - laser_msg->angle_min) / laser_msg->angle_increment) + 1;
+    laser_msg->time_increment = laser_msg->scan_time / static_cast<float>(num_readings);
+
+    laser_msg->range_min = 0.35; 
+    laser_msg->range_max = 30.0;
+
+    // Başlangıçta tüm diziyi sonsuz (boşluk) yapıyoruz
+    laser_msg->ranges.resize(num_readings, std::numeric_limits<float>::infinity()); 
+
+    int x_offset = -1, y_offset = -1, z_offset = -1;
+    for (const auto& field : cloud_msg->fields) {
+        if (field.name == "x") x_offset = field.offset;
+        if (field.name == "y") y_offset = field.offset;
+        if (field.name == "z") z_offset = field.offset;
+    }
+
+    if (x_offset == -1 || y_offset == -1 || z_offset == -1) return;
+
+    for (size_t i = 0; i < cloud_msg->width * cloud_msg->height; ++i) {
+        size_t pixel_offset = i * cloud_msg->point_step;
         
-        // Zaman damgası ve frame_id eşitlemeleri
-        laser_msg->header.stamp = cloud_msg->header.stamp; 
-        laser_msg->header.frame_id = "velodyne"; 
+        float x = *reinterpret_cast<const float*>(&cloud_msg->data[pixel_offset + x_offset]);
+        float y = *reinterpret_cast<const float*>(&cloud_msg->data[pixel_offset + y_offset]);
+        float z = *reinterpret_cast<const float*>(&cloud_msg->data[pixel_offset + z_offset]);
 
-        // Lazer Geometri Ayarları
-        laser_msg->angle_min = -M_PI;
-        laser_msg->angle_max = M_PI;
-        laser_msg->angle_increment = 0.007; 
-        
-        // 🛠️ DEĞİŞİKLİK 1: Sabit 0.0 yerine adımlar arası minik bir zaman ekledik (SLAM için)
-        laser_msg->scan_time = 0.033;
-        int num_readings = std::floor((laser_msg->angle_max - laser_msg->angle_min) / laser_msg->angle_increment) + 1;
-        laser_msg->time_increment = laser_msg->scan_time / static_cast<float>(num_readings);
+        if (std::isnan(x) || std::isnan(y) || std::isnan(z)) continue;
 
-        laser_msg->range_min = 0.35; 
-        laser_msg->range_max = 30.0;
+        float R = std::sqrt(x*x + y*y + z*z);
+        if (R < laser_msg->range_min) continue; 
 
-        laser_msg->ranges.resize(num_readings, std::numeric_limits<float>::infinity()); 
+        float vertical_angle = std::asin(z / R);
 
-        int x_offset = -1, y_offset = -1, z_offset = -1;
-        for (const auto& field : cloud_msg->fields) {
-            if (field.name == "x") x_offset = field.offset;
-            if (field.name == "y") y_offset = field.offset;
-            if (field.name == "z") z_offset = field.offset;
+        // Şüphen doğrultusunda burayı bıçak gibi daralttık (Robot sarsılsa da sadece tam yatayı alır)
+        if (vertical_angle < -0.02 || vertical_angle > 0.02) {
+            continue; 
         }
 
-        if (x_offset == -1 || y_offset == -1 || z_offset == -1) return;
+        float range_val = std::sqrt(x*x + y*y);
 
-        // Nokta bulutu taraması
-        for (size_t i = 0; i < cloud_msg->width * cloud_msg->height; ++i) {
-            size_t pixel_offset = i * cloud_msg->point_step;
-            
-            float x = *reinterpret_cast<const float*>(&cloud_msg->data[pixel_offset + x_offset]);
-            float y = *reinterpret_cast<const float*>(&cloud_msg->data[pixel_offset + y_offset]);
-            float z = *reinterpret_cast<const float*>(&cloud_msg->data[pixel_offset + z_offset]);
+        if (range_val >= laser_msg->range_min && range_val <= laser_msg->range_max) {
+            float angle = std::atan2(y, x);
+            int index = std::floor((angle - laser_msg->angle_min) / laser_msg->angle_increment);
 
-            if (std::isnan(x) || std::isnan(y) || std::isnan(z)) continue;
-
-            // --- YENİ MATEMATİKSEL KATMAN / RING FİLTRESİ ---
-            float R = std::sqrt(x*x + y*y + z*z);
-            if (R < laser_msg->range_min) continue; 
-
-            float vertical_angle = std::asin(z / R);
-
-            if (vertical_angle < -0.05 || vertical_angle > 0.05) {
-                continue; 
-            }
-
-            float range_val = std::sqrt(x*x + y*y);
-
-            if (range_val >= laser_msg->range_min && range_val <= laser_msg->range_max) {
-                float angle = std::atan2(y, x);
-                int index = std::floor((angle - laser_msg->angle_min) / laser_msg->angle_increment);
-
-                if (index >= 0 && index < num_readings) {
-                    if (range_val < laser_msg->ranges[index]) {
-                        laser_msg->ranges[index] = range_val;
-                    }
+            if (index >= 0 && index < num_readings) {
+                if (range_val < laser_msg->ranges[index]) {
+                    laser_msg->ranges[index] = range_val;
                 }
             }
         }
-
-        // 🛠️ DEĞİŞİKLİK 2: Ardışık .inf gürültüsünü engellemek için boşlukları dolduruyoruz
-        // Eğer bir veri .inf ise, onun yerine bir önceki geçerli veriyi yazarak SLAM'in kopmasını önlüyoruz.
-        float last_valid_range = 10.0; // Varsayılan başlangıç mesafesi
-        for (int i = 0; i < num_readings; ++i) {
-            if (std::isinf(laser_msg->ranges[i])) {
-                laser_msg->ranges[i] = last_valid_range;
-            } else {
-                last_valid_range = laser_msg->ranges[i];
-            }
-        }
-
-        publisher_->publish(*laser_msg);
     }
+
+    // ❌ O TEHLİKELİ ARDIŞIK DOĞRULAMA DÖNGÜSÜNÜ TAMAMEN KALDIRDIK!
+    // ROS ve SLAM standartlarına göre boşluklar .inf kalmalı ki SLAM orayı "boş alan" olarak haritaya işleyebilsen.
+
+    publisher_->publish(*laser_msg);
+}
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr publisher_;

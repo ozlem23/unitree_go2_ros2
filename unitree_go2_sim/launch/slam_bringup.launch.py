@@ -150,16 +150,22 @@ def generate_launch_description():
         }],
         arguments=[
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
-            '/imu/data@sensor_msgs/msg/Imu@gz.msgs.IMU',
+            '/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU',          # GZ -> ROS
             #'/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
             #'/tf_static@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
-            '/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model',
+            
+            # DOĞRU YÖN: Eklem durumları Gazebo'dan ROS'a akmalı ([)
+            '/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model',
+            
             # 3D ham veri — bu topic korunuyor, kaybolmuyor
             '/velodyne_points/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
-            '/unitree_lidar/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
-            '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
-            '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
-            '/joint_group_effort_controller/joint_trajectory@trajectory_msgs/msg/JointTrajectory]gz.msgs.JointTrajectory',
+            '/unitree_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
+            
+            # DOĞRU YÖN: Odometri verisi Gazebo'dan ROS'a akmalı ([)
+            '/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+            
+            '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',     # ROS -> GZ
+            '/joint_group_effort_controller/joint_trajectory@trajectory_msgs/msg/JointTrajectory]gz.msgs.JointTrajectory', # ROS -> GZ
         ],
     )
 
